@@ -10,11 +10,21 @@ const AudioManager = {
     tireGain: null,
     isInitialized: false,
     
-    init() {
+    async init() {
         if (this.isInitialized) return;
         
         try {
             this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Важно: Браузеры могут держать контекст в suspended до жеста пользователя
+            if (this.ctx.state === 'suspended') {
+                await this.ctx.resume();
+            }
+            
+            // Master Volume для общего контроля
+            this.masterGain = this.ctx.createGain();
+            this.masterGain.gain.value = 0.5; // Общая громкость 50%
+            this.masterGain.connect(this.ctx.destination);
             
             // 1. Настройка звука двигателя (упрощенный синтез)
             this.engineOsc = this.ctx.createOscillator();
@@ -29,7 +39,7 @@ const AudioManager = {
             
             this.engineOsc.connect(filter);
             filter.connect(this.engineGain);
-            this.engineGain.connect(this.ctx.destination);
+            this.engineGain.connect(this.masterGain); // Подключаем к Master
             this.engineOsc.start();
             
             // 2. Настройка звука визга шин
@@ -44,11 +54,11 @@ const AudioManager = {
             
             this.tireOsc.connect(tireFilter);
             tireFilter.connect(this.tireGain);
-            this.tireGain.connect(this.ctx.destination);
+            this.tireGain.connect(this.masterGain); // Подключаем к Master
             this.tireOsc.start();
             
             this.isInitialized = true;
-            console.log('Audio initialized');
+            console.log('Audio initialized, state:', this.ctx.state);
         } catch (e) {
             console.error('Failed to init audio', e);
         }
@@ -58,12 +68,16 @@ const AudioManager = {
         if (!this.isInitialized) return;
         
         // Обновление двигателя
-        const baseFreq = 50;
-        const rpmFreq = (car.rpm / 1000) * 40;
+        const baseFreq = 60; // Чуть выше бас
+        const rpmFreq = (car.rpm / 1000) * 50;
         this.engineOsc.frequency.setTargetAtTime(baseFreq + rpmFreq, this.ctx.currentTime, 0.1);
         
-        // Громкость двигателя зависит от газа
-        const targetVol = 0.1 + (car.controls.throttle * 0.15);
+        // Громкость двигателя зависит от газа + базовый гул
+        // ХХ (800 rpm) -> тихий звук. Газ -> громкий.
+        const idleVol = 0.1;
+        const throttleVol = car.controls.throttle * 0.3;
+        const targetVol = idleVol + throttleVol;
+        
         this.engineGain.gain.setTargetAtTime(targetVol, this.ctx.currentTime, 0.1);
         
         // Обновление визга шин
@@ -80,7 +94,7 @@ const AudioManager = {
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
         osc.connect(gain);
-        gain.connect(this.ctx.destination);
+        gain.connect(this.masterGain); // Через мастер
         
         osc.frequency.setValueAtTime(150, this.ctx.currentTime);
         gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
