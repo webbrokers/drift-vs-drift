@@ -12,7 +12,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   renderer = new window.Renderer("gameCanvas");
   track = new window.Track();
-  playerCar = new window.Car(window.innerWidth / 2, window.innerHeight / 2);
+  // Старт слева: CenterX - ScaleX (где ScaleX = width * 0.4)
+  // CenterX = width / 2. Итого: width * 0.5 - width * 0.4 = width * 0.1
+  playerCar = new window.Car(window.innerWidth * 0.1, window.innerHeight / 2);
 
   // Инициализация игрового цикла
   gameLoop = new window.GameLoop(update, render);

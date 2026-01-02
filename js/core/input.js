@@ -8,8 +8,8 @@ class Input {
         
         window.addEventListener('keydown', (e) => {
             this.keys[e.code] = true;
-            // Предотвращаем прокрутку страницы стрелками
-            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
+            // Предотвращаем прокрутку страницы стрелками и спец. клавишами
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyW', 'KeyS', 'KeyA', 'KeyD', 'KeyZ'].includes(e.code)) {
                 e.preventDefault();
             }
         });

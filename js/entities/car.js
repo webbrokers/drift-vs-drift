@@ -31,8 +31,8 @@ class Car {
         this.speed = 0; // линейная скорость вдоль направления
         this.angularVelocity = 0;
         this.steeringAngle = 0;
-        this.currentGear = 1;
-        this.rpm = 1000;
+        this.currentGear = 0; // 0 - Нейтраль
+        this.rpm = 800; // Холостые
         
         // Управление
         this.controls = {
@@ -44,7 +44,7 @@ class Car {
         
         // Вспомогательные состояния для физики
         this.lastClutchState = false;
-        this.lastRpmBeforeClutchRelease = 1000;
+        this.lastRpmBeforeClutchRelease = 800;
         this.lastGearUpPressed = false;
         this.lastGearDownPressed = false;
         
@@ -97,7 +97,7 @@ class Car {
         ctx.save();
         ctx.translate(x, y);
         ctx.rotate(angle);
-        ctx.fillStyle = '#333';
+        ctx.fillStyle = '#888'; // Светлые колеса для контраста
         ctx.fillRect(-5, -10, 10, 20);
         ctx.restore();
     }

@@ -7,16 +7,20 @@ const CarPhysics = {
         const input = window.Input;
         const math = window.GameMath;
         
-        // 1. Считывание управления
-        car.controls.throttle = input.isPressed('ArrowUp') ? 1 : 0;
-        car.controls.brake = input.isPressed('ArrowDown') ? 1 : 0;
+        // 1. Считывание управления (WASD + Стрелки)
+        // Газ: W или Стрелка Вверх
+        car.controls.throttle = (input.isPressed('ArrowUp') || input.isPressed('KeyW')) ? 1 : 0;
+        // Тормоз: S или Стрелка Вниз
+        car.controls.brake = (input.isPressed('ArrowDown') || input.isPressed('KeyS')) ? 1 : 0;
+        // Ручник: Пробел
         car.controls.handbrake = input.isPressed('Space');
-        car.controls.clutch = input.isPressed('AltLeft');
+        // Сцепление: Z или Alt
+        car.controls.clutch = input.isPressed('AltLeft') || input.isPressed('KeyZ');
         
-        // 2. Рулевое управление
+        // 2. Рулевое управление (A/D или Стрелки)
         let targetSteering = 0;
-        if (input.isPressed('ArrowLeft')) targetSteering = -car.config.maxSteeringAngle;
-        if (input.isPressed('ArrowRight')) targetSteering = car.config.maxSteeringAngle;
+        if (input.isPressed('ArrowLeft') || input.isPressed('KeyA')) targetSteering = -car.config.maxSteeringAngle;
+        if (input.isPressed('ArrowRight') || input.isPressed('KeyD')) targetSteering = car.config.maxSteeringAngle;
         
         // Плавный поворот руля
         const steerDiff = targetSteering - car.steeringAngle;
@@ -33,15 +37,28 @@ const CarPhysics = {
         car.speed = vForward;
         
         // Силы тяги и торможения
-        const engineForce = car.controls.clutch ? 0 : (car.controls.throttle * 800 * (car.config.gears[car.currentGear - 1].ratio / 3.5));
-        const brakeForce = car.controls.brake * 1200 + (car.controls.handbrake ? 2000 : 0);
+        // Если сцепление выжато ИЛИ нейтраль (gear 0) -> нет тяги
+        const isClutchEngaged = !car.controls.clutch && car.currentGear !== 0;
+        
+        // Масштабирование сил для корректного движения (масса 1200)
+        // Увеличиваем в 500 раз относительно "реальных" ньютонов, чтобы соответствовать пикселям
+        const FORCE_SCALE = 500;
+        
+        let engineForce = 0;
+        if (isClutchEngaged) {
+             engineForce = car.controls.throttle * 800 * FORCE_SCALE * (car.config.gears[car.currentGear - 1].ratio / 3.5);
+        }
+        
+        const brakeForce = (car.controls.brake * 1200 + (car.controls.handbrake ? 2000 : 0)) * FORCE_SCALE;
         
         // Продольная сила (тяга - тормоз - сопротивление)
-        const totalLongForce = engineForce - (Math.sign(vForward) * brakeForce) - (vForward * 0.5);
+        // Сопротивление воздуха и качения
+        const dragForce = vForward * 10; 
+        const totalLongForce = engineForce - (Math.sign(vForward) * brakeForce) - dragForce;
         
         // Боковая сила (упрощенная модель сцепления)
         // Чем больше боковая скорость, тем сильнее шины сопротивляются, пока не сорвутся в занос
-        const lateralGrip = car.controls.handbrake ? 0.2 : 0.9;
+        const lateralGrip = car.controls.handbrake ? 0.2 : 4.0; // Увеличили грип для управляемости
         const lateralForce = -vRight * lateralGrip * car.config.mass;
         
         // 4. Поворот (центробежные силы и влияние руля)
@@ -60,8 +77,8 @@ const CarPhysics = {
         car.velocity.y += accelY * dt;
         
         // Предотвращаем бесконечно малые скорости
-        if (Math.abs(car.velocity.x) < 0.01) car.velocity.x = 0;
-        if (Math.abs(car.velocity.y) < 0.01) car.velocity.y = 0;
+        if (Math.abs(car.velocity.x) < 0.1) car.velocity.x = 0;
+        if (Math.abs(car.velocity.y) < 0.1) car.velocity.y = 0;
         
         // 6. Обновление позиции
         const nextX = car.pos.x + car.velocity.x * dt;
@@ -92,13 +109,19 @@ const CarPhysics = {
     
     updateEngine(car, dt) {
         const input = window.Input;
-        const gear = car.config.gears[car.currentGear - 1];
+        // Текущее передаточное число (безопасное получение)
+        const gear = car.currentGear > 0 ? car.config.gears[car.currentGear - 1] : null;
         
-        // 1. Управление передачами (Ctrl/Shift)
+        const throttle = car.controls.throttle;
+        const isClutchEngaged = !car.controls.clutch;
+
+        // 1. Управление передачами (Ctrl/Shift -> Shift/Ctrl для удобства или просто упрощенно)
+        // Сделаем более привычно: Shift - Вверх, Ctrl - Вниз.
+        // Но код использует Clutch + Ctrl/Shift.
+        // Если сцепление (Z):
         if (car.controls.clutch) {
-            if (input.isPressed('ControlLeft') && car.currentGear < 6) {
-                // Передача вверх (защита от дребезга нажатий - нужна была бы здесь, 
-                // но пока упростим до простого переключения)
+            // Передача ВВЕРХ (Shift)
+            if (input.isPressed('ShiftLeft') && car.currentGear < 6) {
                 if (!this.lastGearUpPressed) {
                     car.currentGear++;
                     this.lastGearUpPressed = true;
@@ -108,7 +131,8 @@ const CarPhysics = {
                 this.lastGearUpPressed = false;
             }
             
-            if (input.isPressed('ShiftLeft') && car.currentGear > 1) {
+            // Передача ВНИЗ (Ctrl)
+            if (input.isPressed('ControlLeft') && car.currentGear > 0) { // Можно в нейтраль (0)
                 if (!this.lastGearDownPressed) {
                     car.currentGear--;
                     this.lastGearDownPressed = true;
@@ -120,36 +144,37 @@ const CarPhysics = {
         }
 
         // 2. Расчет оборотов (RPM)
-        if (car.controls.clutch) {
-            // Сцепление выжато: обороты растут от газа или падают на холостые
-            if (car.controls.throttle > 0) {
-                car.rpm = Math.min(car.rpm + 8000 * dt, 7500);
+        // Двигатель отсоединен (Нейтраль или Сцепление)
+        if (!isClutchEngaged || car.currentGear === 0) {
+            // Обороты растут от газа или падают на ХХ
+            if (throttle > 0) {
+                car.rpm = Math.min(car.rpm + 15000 * dt, 7500); // Резкий набор на холостых
             } else {
-                car.rpm = Math.max(car.rpm - 3000 * dt, 1000);
+                car.rpm = Math.max(car.rpm - 5000 * dt, 800); // Падение до 800
             }
             car.lastRpmBeforeClutchRelease = car.rpm;
-        } else {
-            // Сцепление отпущено: обороты связаны со скоростью
-            const targetRpm = 1000 + (Math.abs(car.speed) / gear.maxSpeed) * 6000;
+        } 
+        // Двигатель соединен с колесами
+        else if (gear) {
+            // Обороты связаны со скоростью жестко
+            // Speed (px/s) -> km/h -> RPM
+            // Грубая формула: rpm = speed / maxSpeed * maxRpm
+            // Но лучше через передаточные числа, если бы была полная симуляция
+            // Используем упрощенную линейную зависимость от "доли максимальной скорости на передаче"
             
-            // Если мы только что отпустили сцепление (Clutch Kick)
-            if (car.lastClutchState === true) {
-                const rpmDiff = car.lastRpmBeforeClutchRelease - targetRpm;
-                if (rpmDiff > 1000) {
-                    // Штраф: рывок и потеря скорости
-                    car.speed *= 0.95;
-                    console.log('Clutch Kick Penalty!');
-                } else if (rpmDiff > 100) {
-                    // Бонус: пинок ускорения
-                    car.speed += 2; 
-                    console.log('Clutch Kick Boost!');
-                }
+            const speedRatio = Math.abs(car.speed) / (gear.maxSpeed * 3); // *3 т.к. увеличили scale
+            let targetRpm = 800 + speedRatio * 7000;
+            
+            // Если колеса стоят, а мы жмем газ без сцепления -> обороты не растут (двигатель "давится" или глохнет)
+            // Но для аркадности позволим ему набирать обороты и тянуть машину (как АКПП)
+            // В нашей физике выше (engineForce) уже применена сила.
+            
+            // Clutch Kick (рывок при бросании сцепления)
+            if (car.lastClutchState === true && car.rpm > 4000) {
+                 // Можно добавить импульс, но пока просто звук
             }
             
-            // Обороты стремятся к целевым (связанным со скоростью)
             car.rpm = window.GameMath.lerp(car.rpm, targetRpm, 0.2);
-            
-            // Если обороты слишком низкие для этой передачи - машина дергается (будет позже)
         }
         
         car.lastClutchState = car.controls.clutch;

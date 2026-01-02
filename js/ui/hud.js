@@ -48,7 +48,10 @@ const HUD = {
         this.elements.rpmBar.style.width = rpmPercent + '%';
         
         // Передача
-        this.elements.gear.textContent = car.currentGear === 7 ? 'R' : car.currentGear;
+        let gearText = car.currentGear;
+        if (car.currentGear === 0) gearText = 'N';
+        else if (car.currentGear === 7) gearText = 'R';
+        this.elements.gear.textContent = gearText;
         
         // Индикатор руля (переводим угол в % заполнения)
         const steerPercent = (car.steeringAngle / car.config.maxSteeringAngle) * 50;
