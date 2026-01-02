@@ -40,6 +40,11 @@ const GameMath = {
         normalize(v) {
             const len = this.length(v);
             return len === 0 ? { x: 0, y: 0 } : { x: v.x / len, y: v.y / len };
+        },
+        dist(v1, v2) {
+            const dx = v1.x - v2.x;
+            const dy = v1.y - v2.y;
+            return Math.sqrt(dx * dx + dy * dy);
         }
     }
 };
