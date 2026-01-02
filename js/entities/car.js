@@ -10,8 +10,8 @@ class Car {
         
         // Физические параметры (из конфига плана)
         this.config = {
-            width: 80,
-            height: 160,
+            width: 40,
+            height: 80,
             mass: 1200,
             gears: [
                 { ratio: 3.5, maxSpeed: 40 },
@@ -70,12 +70,12 @@ class Car {
         
         // Спойлер (задняя часть)
         ctx.fillStyle = '#111';
-        ctx.fillRect(-this.config.width / 2 - 5, this.config.height / 2 - 10, this.config.width + 10, 15);
+        ctx.fillRect(-this.config.width / 2 - 2.5, this.config.height / 2 - 5, this.config.width + 5, 7.5);
         
         // Фары (передняя часть)
         ctx.fillStyle = '#fffabc'; // Свет фар
-        ctx.fillRect(-this.config.width / 2 + 5, -this.config.height / 2, 15, 5);
-        ctx.fillRect(this.config.width / 2 - 20, -this.config.height / 2, 15, 5);
+        ctx.fillRect(-this.config.width / 2 + 2.5, -this.config.height / 2, 7.5, 2.5);
+        ctx.fillRect(this.config.width / 2 - 10, -this.config.height / 2, 7.5, 2.5);
 
         // Если в дрифте, рисуем небольшую обводку для эффекта
         if (this.isDrifting) {
@@ -85,10 +85,10 @@ class Car {
         }
         
         // Колеса (визуализация поворота)
-        this.drawWheel(ctx, -this.config.width / 2 - 5, -this.config.height / 2 + 30, this.steeringAngle); // ЛП
-        this.drawWheel(ctx, this.config.width / 2 + 5, -this.config.height / 2 + 30, this.steeringAngle);  // ПП
-        this.drawWheel(ctx, -this.config.width / 2 - 5, this.config.height / 2 - 30, 0);                 // ЛЗ
-        this.drawWheel(ctx, this.config.width / 2 + 5, this.config.height / 2 - 30, 0);                  // ПЗ
+        this.drawWheel(ctx, -this.config.width / 2 - 2.5, -this.config.height / 2 + 15, this.steeringAngle); // ЛП
+        this.drawWheel(ctx, this.config.width / 2 + 2.5, -this.config.height / 2 + 15, this.steeringAngle);  // ПП
+        this.drawWheel(ctx, -this.config.width / 2 - 2.5, this.config.height / 2 - 15, 0);                 // ЛЗ
+        this.drawWheel(ctx, this.config.width / 2 + 2.5, this.config.height / 2 - 15, 0);                  // ПЗ
         
         ctx.restore();
     }
@@ -98,7 +98,7 @@ class Car {
         ctx.translate(x, y);
         ctx.rotate(angle);
         ctx.fillStyle = '#333';
-        ctx.fillRect(-10, -20, 20, 40);
+        ctx.fillRect(-5, -10, 10, 20);
         ctx.restore();
     }
 }
