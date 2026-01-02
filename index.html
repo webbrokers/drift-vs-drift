@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Drift Infinity - 2D Drift Racing</title>
+    <link rel="stylesheet" href="css/main.css" />
+    <link rel="stylesheet" href="css/menu.css" />
+    <link rel="stylesheet" href="css/hud.css" />
+  </head>
+  <body>
+    <div id="game-container">
+      <canvas id="gameCanvas"></canvas>
+
+      <!-- HUD Элементы -->
+      <div id="hud">
+        <div id="steering-indicator-container">
+          <div id="steering-indicator"></div>
+        </div>
+        <div id="score-container">Очки: <span id="score">0</span></div>
+        <div id="speedometer-container">
+          <div id="speed">0</div>
+          <div class="unit">км/ч</div>
+        </div>
+        <div id="tachometer-container">
+          <div id="rpm">0</div>
+          <div class="unit">RPM</div>
+          <div id="rpm-bar-container"><div id="rpm-bar"></div></div>
+        </div>
+        <div id="gear-container">
+          <div id="gear">1</div>
+        </div>
+        <div id="status-indicators">
+          <div id="handbrake-icon" class="indicator">🅷</div>
+          <div id="clutch-icon" class="indicator">🄲</div>
+        </div>
+      </div>
+
+      <!-- Меню и экраны -->
+      <div id="menu-overlay" class="overlay">
+        <div class="menu-content">
+          <h1>Drift Infinity</h1>
+          <button id="start-btn">Начать игру</button>
+          <button id="settings-btn">Настройки</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Скрипты -->
+    <script src="js/utils/math.js"></script>
+    <script src="js/utils/storage.js"></script>
+    <script src="js/core/input.js"></script>
+    <script src="js/core/audio.js"></script>
+    <script src="js/core/game-loop.js"></script>
+    <script src="js/core/renderer.js"></script>
+    <script src="js/physics/car-physics.js"></script>
+    <script src="js/physics/drift.js"></script>
+    <script src="js/physics/collision.js"></script>
+    <script src="js/entities/car.js"></script>
+    <script src="js/entities/track.js"></script>
+    <script src="js/ui/hud.js"></script>
+    <script src="js/ui/menu.js"></script>
+    <script src="js/main.js"></script>
+  </body>
+</html>
