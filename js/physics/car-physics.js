@@ -24,7 +24,9 @@ const CarPhysics = {
         
         // Плавный поворот руля
         const steerDiff = targetSteering - car.steeringAngle;
-        car.steeringAngle += Math.sign(steerDiff) * Math.min(Math.abs(steerDiff), car.config.steeringSpeed * dt);
+        // Возврат в центр в 2 раза медленнее поворота
+        const currentSteeringSpeed = (targetSteering === 0) ? car.config.steeringSpeed / 2 : car.config.steeringSpeed;
+        car.steeringAngle += Math.sign(steerDiff) * Math.min(Math.abs(steerDiff), currentSteeringSpeed * dt);
         
         // 3. Расчет сил и скоростей
         const forward = { x: Math.sin(car.angle), y: -Math.cos(car.angle) };
@@ -54,26 +56,57 @@ const CarPhysics = {
         // Продольная сила (тяга - тормоз - сопротивление)
         // Сопротивление воздуха и качения
         const dragForce = vForward * 10; 
-        const totalLongForce = engineForce - (Math.sign(vForward) * brakeForce) - dragForce;
+        
+        // Исправляем баг торможения на месте
+        let finalBrakeForce = brakeForce;
+        if (Math.abs(vForward) < 1 && car.controls.brake > 0 && car.controls.throttle === 0) {
+            // Если почти стоим и жмем тормоз - просто обнуляем скорость и не даем сил
+            car.velocity.x *= 0.8;
+            car.velocity.y *= 0.8;
+            finalBrakeForce = 0;
+        }
+
+        const totalLongForce = engineForce - (Math.sign(vForward) * finalBrakeForce) - dragForce;
         
         // Боковая сила (упрощенная модель сцепления)
         // Чем больше боковая скорость, тем сильнее шины сопротивляются, пока не сорвутся в занос
+        // Улучшенная модель сцепления
+        // По умолчанию 4.0, при ручнике 0.2
         let currentGrip = car.controls.handbrake ? 0.2 : 4.0;
         
-        // Clutch Kick Effect: Временная потеря сцепления задней оси
+        // Если выжато сцепление и НЕ нажат ручник - задние колеса "свободны" и имеют лучшее сцепление
+        // Это позволяет машине ехать туда, куда повернуты колеса при выжатом сцеплении
+        if (car.controls.clutch && !car.controls.handbrake) {
+            currentGrip = 6.0; // Усиленный зацеп для выравнивания
+        }
+
+        // Инициация заноса: Сцепление + Ручник + Повернутый руль на скорости
+        if (car.controls.clutch && car.controls.handbrake && Math.abs(car.steeringAngle) > 0.1 && Math.abs(car.speed) > 5) {
+            currentGrip = 0.1; // Резкий срыв
+        }
+        
+        // Clutch Kick Effect
         if (car.clutchKickTimer && car.clutchKickTimer > 0) {
-            currentGrip = 1.0; // Снижаем сцепление, чтобы машину "понесло"
+            currentGrip = 0.5; 
         }
         
         const lateralGrip = currentGrip; 
         const lateralForce = -vRight * lateralGrip * car.config.mass;
         
-        // 4. Поворот (центробежные силы и влияние руля)
-        const rotationScale = car.speed * 0.005;
+        // 4. Поворот (Инерциальная модель)
+        const rotationScale = car.speed * 0.008; // Чуть увеличим влияние скорости
         const torque = car.steeringAngle * rotationScale * car.config.mass;
-        const angularAcceleration = torque / 1500; // момент инерции из конфига
         
-        car.angularVelocity = angularAcceleration; // упрощенно приравняем пока
+        // Добавляем инерцию вращения. 1500 - момент инерции
+        const angularAcceleration = torque / 1500; 
+        
+        // Интегрируем угловую скорость (раньше было прямое присваивание acceleration)
+        car.angularVelocity += angularAcceleration * dt;
+        
+        // Демпфирование вращения (сопротивление воздуха/трение)
+        const angularDrag = 0.95; 
+        car.angularVelocity *= Math.pow(angularDrag, dt * 60);
+
         car.angle += car.angularVelocity * dt;
         
         // 5. Суммируем ускорения
@@ -161,24 +194,18 @@ const CarPhysics = {
             if (throttle > 0) {
                 car.rpm = Math.min(car.rpm + 15000 * dt, 7500); 
             } else {
-                car.rpm = Math.max(car.rpm - 5000 * dt, 800); 
+                // Падение оборотов в 2 раза медленнее роста (15000 / 2 = 7500)
+                car.rpm = Math.max(car.rpm - 7500 * dt, 800); 
             }
             car.lastRpmBeforeClutchRelease = car.rpm;
         } 
         else if (gear) {
+            // При включенной передаче и отпущенном сцеплении обороты связаны со скоростью колес
             const speedRatio = Math.abs(car.speed) / (gear.maxSpeed * 3); 
             let targetRpm = 800 + speedRatio * 7000;
             
-            // Clutch Kick Detection
-            // Если сцепление только что бросили и обороты были высокие
-            if (car.lastClutchState === true && car.lastRpmBeforeClutchRelease > 4000) {
-                 console.log('Clutch Kick!');
-                 car.clutchKickTimer = 0.5; // Эффект длится 0.5 секунды
-                 // Также можно чуть подбросить обороты, чтобы не провалились мгновенно
-                 targetRpm = Math.max(targetRpm, 4000);
-            }
-            
-            car.rpm = window.GameMath.lerp(car.rpm, targetRpm, 0.2);
+            // Если мы тормозим на передаче, обороты не должны падать мгновенно
+            car.rpm = window.GameMath.lerp(car.rpm, targetRpm, 10 * dt);
         }
         
         car.lastClutchState = car.controls.clutch;

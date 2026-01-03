@@ -85,20 +85,46 @@ class Car {
         }
         
         // Колеса (визуализация поворота)
-        this.drawWheel(ctx, -this.config.width / 2 - 2.5, -this.config.height / 2 + 15, this.steeringAngle); // ЛП
-        this.drawWheel(ctx, this.config.width / 2 + 2.5, -this.config.height / 2 + 15, this.steeringAngle);  // ПП
-        this.drawWheel(ctx, -this.config.width / 2 - 2.5, this.config.height / 2 - 15, 0);                 // ЛЗ
-        this.drawWheel(ctx, this.config.width / 2 + 2.5, this.config.height / 2 - 15, 0);                  // ПЗ
+        this.drawWheel(ctx, -this.config.width / 2 - 2.5, -this.config.height / 2 + 15, this.steeringAngle, true);  // ЛП
+        this.drawWheel(ctx, this.config.width / 2 + 2.5, -this.config.height / 2 + 15, this.steeringAngle, true);   // ПП
+        this.drawWheel(ctx, -this.config.width / 2 - 2.5, this.config.height / 2 - 15, 0, false);                  // ЛЗ
+        this.drawWheel(ctx, this.config.width / 2 + 2.5, this.config.height / 2 - 15, 0, false);                   // ПЗ
         
         ctx.restore();
     }
     
-    drawWheel(ctx, x, y, angle) {
+    drawWheel(ctx, x, y, angle, isFront = false) {
         ctx.save();
         ctx.translate(x, y);
         ctx.rotate(angle);
-        ctx.fillStyle = '#888'; // Светлые колеса для контраста
+        
+        // Колесо
+        ctx.fillStyle = '#888'; 
         ctx.fillRect(-5, -10, 10, 20);
+        
+        // Вектор скорости вращения (белый, макс ~20px)
+        let vectorLen = 0;
+        if (isFront) {
+            // Передние колеса зависят от линейной скорости
+            vectorLen = (this.speed / 50) * 20;
+        } else {
+            // Задние колеса: если сцепление выжато или нейтраль -> от RPM, иначе от скорости
+            const isNeutralOrClutch = this.currentGear === 0 || this.controls.clutch;
+            if (isNeutralOrClutch) {
+                vectorLen = (this.rpm / 7500) * 20 * (this.controls.throttle > 0 ? 1 : 0.5);
+            } else {
+                vectorLen = (this.speed / 50) * 20;
+            }
+        }
+        
+        // Рисуем вектор (белая линия)
+        ctx.beginPath();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, -Math.max(-20, Math.min(20, vectorLen)));
+        ctx.stroke();
+        
         ctx.restore();
     }
 }
