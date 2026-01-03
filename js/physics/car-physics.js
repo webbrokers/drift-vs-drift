@@ -43,8 +43,8 @@ const CarPhysics = {
         const isClutchEngaged = !car.controls.clutch && car.currentGear !== 0;
         
         // Масштабирование сил для корректного движения (масса 1200)
-        // Увеличиваем в 500 раз относительно "реальных" ньютонов, чтобы соответствовать пикселям
-        const FORCE_SCALE = 500;
+        // Снижаем FORCE_SCALE с 500 до 50 для реализма
+        const FORCE_SCALE = 50;
         
         let engineForce = 0;
         if (isClutchEngaged) {
@@ -71,8 +71,8 @@ const CarPhysics = {
         // Боковая сила (упрощенная модель сцепления)
         // Чем больше боковая скорость, тем сильнее шины сопротивляются, пока не сорвутся в занос
         // Улучшенная модель сцепления
-        // По умолчанию 4.0, при ручнике 0.2
-        let currentGrip = car.controls.handbrake ? 0.2 : 4.0;
+        // По умолчанию 15.0 (для лучшего держака), при ручнике 0.2
+        let currentGrip = car.controls.handbrake ? 0.2 : 15.0;
         
         // Если выжато сцепление и НЕ нажат ручник - задние колеса "свободны" и имеют лучшее сцепление
         // Это позволяет машине ехать туда, куда повернуты колеса при выжатом сцеплении
@@ -93,18 +93,26 @@ const CarPhysics = {
         const lateralGrip = currentGrip; 
         const lateralForce = -vRight * lateralGrip * car.config.mass;
         
-        // 4. Поворот (Инерциальная модель)
-        const rotationScale = car.speed * 0.008; // Чуть увеличим влияние скорости
-        const torque = car.steeringAngle * rotationScale * car.config.mass;
+        // 4. Поворот (Кинематическая модель + Инерция)
+        // Машина должна ехать туда, куда повернуты колеса.
+        // wheelbase - расстояние между осями (примерно 70% высоты машины)
+        const wheelbase = car.config.height * 0.7;
         
-        // Добавляем инерцию вращения. 1500 - момент инерции
-        const angularAcceleration = torque / 1500; 
+        // Целевая угловая скорость на основе Ackermann steering
+        // w = (v / R) where R = wheelbase / sin(steeringAngle)
+        let targetAngularVelocity = 0;
+        if (Math.abs(car.speed) > 1) {
+            targetAngularVelocity = (car.speed / wheelbase) * Math.tan(car.steeringAngle);
+        }
+
+        // Плавное достижение целевой угловой скорости (инерция)
+        const turningResponsiveness = 5.0; // Как быстро машина следует за рулем
+        const angularAcceleration = (targetAngularVelocity - car.angularVelocity) * turningResponsiveness;
         
-        // Интегрируем угловую скорость (раньше было прямое присваивание acceleration)
         car.angularVelocity += angularAcceleration * dt;
         
-        // Демпфирование вращения (сопротивление воздуха/трение)
-        const angularDrag = 0.95; 
+        // Демпфирование (сопротивление вращению)
+        const angularDrag = 0.9; 
         car.angularVelocity *= Math.pow(angularDrag, dt * 60);
 
         car.angle += car.angularVelocity * dt;
@@ -207,6 +215,9 @@ const CarPhysics = {
             // Если мы тормозим на передаче, обороты не должны падать мгновенно
             car.rpm = window.GameMath.lerp(car.rpm, targetRpm, 10 * dt);
         }
+        
+        // Жесткое ограничение RPM
+        car.rpm = Math.max(800, Math.min(car.rpm, 8000));
         
         car.lastClutchState = car.controls.clutch;
     }

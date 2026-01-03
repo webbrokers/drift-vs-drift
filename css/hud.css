@@ -1,1 +1,11 @@
-/* Стили HUD будут добавлены позже */
+/* Стили HUD */
+#version-display {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  color: rgba(255, 255, 255, 0.7);
+  font-family: "Courier New", Courier, monospace;
+  font-size: 14px;
+  pointer-events: none;
+  z-index: 1000;
+}
